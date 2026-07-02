@@ -1,40 +1,50 @@
-const { MongoClient } = require("mongodb-legacy");
-const assert = require("assert");
+const { MongoClient } = require('mongodb-legacy');
+const assert = require('assert');
+const dboper = require('./operations');
 
-const url = "mongodb://127.0.0.1:27017/";
-const dbName = "nucampsite";
+const url = 'mongodb://127.0.0.1:27017/';
+const dbName = 'nucampsite';
 
 MongoClient.connect(url, {}, (err, client) => {
     assert.strictEqual(err, undefined);
 
-    console.log("Connected correctly to server");
+    console.log('Connected correctly to server');
 
     const db = client.db(dbName);
 
-    db.dropCollection("campsite", (err, result) => {
+    db.dropCollection('campsite', (err, result) => {
         assert.strictEqual(err, undefined);
+        console.log('Dropped Collection:', result);
 
-        console.log("Dropped Collection", result);
+        const documentToInsert = { name: 'Breadcrumb Trail Campground', description: 'Test' };
 
-        const collection = db.collection("campsite");
+        dboper.insertDocument(db, documentToInsert, 'campsite', result => {
+            console.log('Insert Document:', {
+                _id: result.insertedId,
+                ...documentToInsert,
+            });
 
-        const documentToInsert = { name: "Breadcrumb Trail Campground", description: "Test" };
+            dboper.findDocuments(db, 'campsite', docs => {
+                console.log('Found Documents:', docs);
 
-        collection.insertOne(documentToInsert, (err, result) => {
-            assert.strictEqual(err, undefined);
+                dboper.updateDocument(db, { name: "Breadcrumb Trail Campground" },
+                    { description: "Updated Test Description" }, 'campsite', result => {
+                        console.log('Updated Document Count:', result.modifiedCount);
 
-        console.log("Insert Document:", {
-          _id: result.insertedId,
-          ...documentToInsert,
+                        dboper.findDocuments(db, 'campsite', docs => {
+                            console.log('Found Documents:', docs);
+
+                            dboper.removeDocument(db, { name: "Breadcrumb Trail Campground" },
+                                'campsite', result => {
+                                    console.log('Deleted Document Count:', result.deletedCount);
+
+                                    client.close();
+                                }
+                            );
+                        });
+                    }
+                );
+            });
         });
-
-        collection.find().toArray((err, docs) => {
-          assert.strictEqual(err, undefined);
-
-          console.log("Found Documents:", docs);
-
-          client.close();
-        });
-    });
     });
 });
